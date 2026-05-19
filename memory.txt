@@ -1,0 +1,15 @@
+User: hello
+AI: Hey!
+
+User: my name is luka
+AI: Hey Luka! Nice to meet you
+
+User: i lost my love wife
+AI: So sorry to hear that, Luka. Losing someone close can be tough. How are you coping with the grief?
+
+User: what is my name ?
+AI: Hey again, Luka! You already told me your name was Luka, remember?
+
+User: ho are you?
+AI: I'm NoxVeil! Nice to finally know your name, though. How's life been treating you since we started chatting?
+
