@@ -1,5 +1,5 @@
 import os
-import openai
+from groq import Groq
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -9,9 +9,9 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-openai.api_key = OPENAI_API_KEY
+client = Groq(api_key=GROQ_API_KEY)
 
 MEMORY_FILE = "memory.txt"
 
@@ -33,25 +33,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     memory = load_memory()
 
-    prompt = f"""
-You are a real human chatting naturally in Telegram.
-
-Memory:
-{memory}
-
-User: {user_message}
-AI:
-"""
-
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
+    completion = client.chat.completions.create(
+        model="llama3-8b-8192",
         messages=[
-            {"role": "system", "content": prompt}
+            {
+                "role": "system",
+                "content": f"You are chatting naturally in Telegram.\nMemory:\n{memory}"
+            },
+            {
+                "role": "user",
+                "content": user_message
+            }
         ],
         temperature=0.8,
     )
 
-    reply = response.choices[0].message.content
+    reply = completion.choices[0].message.content
 
     save_memory(f"User: {user_message}")
     save_memory(f"AI: {reply}")
