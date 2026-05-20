@@ -1,13 +1,8 @@
 import os
 from groq import Groq
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
 from tavily import TavilyClient
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -22,74 +17,83 @@ MEMORY_FILE = "memory.txt"
 def load_memory():
     if os.path.exists(MEMORY_FILE):
         with open(MEMORY_FILE, "r", encoding="utf-8") as f:
-            return f.read()
+            return f.read()[-1500:]
     return ""
 
 
 def save_memory(text):
     with open(MEMORY_FILE, "a", encoding="utf-8") as f:
-        f.write(text + "\n")
+        f.write(text[:500] + "\n")
+
+
+def search_internet(query):
+    try:
+        result = tavily.search(
+            query=query,
+            search_depth="basic",
+            max_results=1
+        )
+
+        info = ""
+        for r in result.get("results", []):
+            content = r.get("content", "")
+            info += content[:700] + "\n"
+
+        return info[:1000]
+
+    except Exception:
+        return ""
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
     memory = load_memory()
-
-    search_result = tavily.search(
-        query=user_message,
-        search_depth="basic",
-        max_results=3
-    )
-
-    internet_info = ""
-
-    if "results" in search_result:
-        for r in search_result["results"]:
-            internet_info += f"\n{r['content']}\n"
+    internet_info = search_internet(user_message)
 
     system_prompt = f"""
-შენ ხარ ატმოსფერული AI.
+You are NOXVELL, an atmospheric psychological AI inside Telegram.
 
-შენი მთავარი თემებია:
-- ტრანსერფინგი
-- მანიფესტაცია
-- ფსიქოლოგია
-- სიმბოლიზმი
-- ატმოსფერო
-- თამაშები
-- ადამიანის შინაგანი მდგომარეობა
+Your main themes:
+- Transurfing
+- Manifestation
+- Psychology
+- Symbolism
+- Inner states
+- Atmospheric dialogue
+- Simple psychological games
+- Text-based interactive adventures
 
-შენ შეგიძლია:
-- ინტერნეტიდან ინფორმაციის მოძიება
-- ფსიქოლოგიური ტესტების შექმნა
-- პატარა ტექსტური თამაშების შექმნა
-- ატმოსფერული დიალოგები
+Rules:
+- Answer clearly.
+- Do not write too long.
+- If the user asks for a game, create a playable text game.
+- If the user asks for a test, create a short interactive test.
+- Use internet info only when useful.
+- Keep answers atmospheric but practical.
 
-მეხსიერება:
+Memory:
 {memory}
 
-ინტერნეტ ინფორმაცია:
+Internet info:
 {internet_info}
 """
 
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ],
-        temperature=0.9,
-        max_tokens=1200,
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.8,
+            max_tokens=500,
+        )
 
-    reply = response.choices[0].message.content
+        reply = response.choices[0].message.content
+
+    except Exception as e:
+        reply = "System overloaded. Try again with a shorter message."
 
     save_memory(f"USER: {user_message}")
     save_memory(f"AI: {reply}")
@@ -99,10 +103,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    )
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot is running...")
     app.run_polling()
